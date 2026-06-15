@@ -1,6 +1,8 @@
 import { useRouter, Link } from "@tanstack/react-router";
 import { ChevronLeft } from "lucide-react";
+import { useEffect } from "react";
 import type { ReactNode } from "react";
+import { BackButtonManager } from "@/lib/backButton";
 
 interface Props {
   title: string;
@@ -12,10 +14,20 @@ interface Props {
 export function TopBar({ title, back, right, variant = "default" }: Props) {
   const router = useRouter();
   const isPrimary = variant === "primary";
+  
   const onBack = () => {
     if (back) router.navigate({ to: back as never });
     else router.history.back();
   };
+
+  // Hook into the native hardware back button
+  useEffect(() => {
+    const unsubscribe = BackButtonManager.push(() => {
+      onBack();
+      return true; // handled
+    });
+    return unsubscribe;
+  }, [back]);
   return (
     <header
       className={`sticky top-0 z-30 flex items-center justify-between px-4 py-3 ${
