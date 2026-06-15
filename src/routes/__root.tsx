@@ -101,6 +101,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function RootShell({ children }: { children: ReactNode }) {
+  if ((import.meta.env as any).VITE_SPA) {
+    return <>{children}</>;
+  }
+
   return (
     <html lang="en">
       <head>

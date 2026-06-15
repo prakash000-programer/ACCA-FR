@@ -20,6 +20,10 @@ export default defineConfig({
     tsconfigPaths(),
   ],
 
+  define: {
+    "import.meta.env.VITE_SPA": JSON.stringify(true),
+  },
+
   build: {
     outDir: "dist/client",
     emptyOutDir: true,
