@@ -22,7 +22,7 @@ export function MobileFrame({ children, withTabs = false, bg = "bg-background" }
               </span>
             </span>
           </div>
-          <div className={`h-full overflow-y-auto no-scrollbar ${withTabs ? "pb-24" : ""} sm:pt-7`}>
+          <div className={`h-full overflow-y-auto no-scrollbar ${withTabs ? "pb-24" : ""} safe-pt sm:pt-7`}>
             {children}
           </div>
           {withTabs && <BottomNav />}

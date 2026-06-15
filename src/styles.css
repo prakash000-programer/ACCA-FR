@@ -93,3 +93,8 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+@utility safe-pt {
+  padding-top: 24px;
+  padding-top: max(env(safe-area-inset-top), 24px);
+}

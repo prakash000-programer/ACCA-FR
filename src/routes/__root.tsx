@@ -141,7 +141,7 @@ function RootComponentInner() {
 
     // 1. Auth Guard: Protect all pages except '/' and '/auth'
     if (!user && path !== "/" && path !== "/auth") {
-      navigate({ to: "/auth", search: { mode: "login" } });
+      navigate({ to: "/auth", search: { mode: "login" }, replace: true });
       return;
     }
 
@@ -168,9 +168,9 @@ function RootComponentInner() {
       );
 
       if (!isSubscribed && isTryingToAccessProtected) {
-        navigate({ to: "/subscription" });
+        navigate({ to: "/subscription", replace: true });
       } else if (isSubscribed && path === "/subscription") {
-        navigate({ to: "/home" });
+        navigate({ to: "/home", replace: true });
       }
     }
   }, [user, subscriptionStatus, loading, subscriptionLoading, router.state.location.pathname, navigate]);

@@ -60,7 +60,7 @@ function VerifyPage() {
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
-      navigate({ to: "/auth", search: { mode: "login" } });
+      navigate({ to: "/auth", search: { mode: "login" }, replace: true });
       return;
     }
 
@@ -123,14 +123,14 @@ function VerifyPage() {
           const isSubscribed = profile?.subscription_status === "active";
           setTimeout(() => {
             if (isSubscribed) {
-              navigate({ to: "/home" });
+              navigate({ to: "/home", replace: true });
             } else {
-              navigate({ to: "/subscription" });
+              navigate({ to: "/subscription", replace: true });
             }
           }, 1200);
         } catch (err) {
           console.error("Error checking subscription:", err);
-          navigate({ to: "/subscription" });
+          navigate({ to: "/subscription", replace: true });
         }
       };
 

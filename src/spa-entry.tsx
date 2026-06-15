@@ -12,12 +12,22 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import { RouterProvider } from "@tanstack/react-router";
 import { getRouter } from "./router";
+import { App } from "@capacitor/app";
 
 // Import CSS directly so Vite bundles it into the APK (prevents blank screen
 // that occurs when HeadContent alone is relied on for stylesheet injection)
 import "./styles.css";
 
 const router = getRouter();
+
+// Handle Android hardware back button
+App.addListener("backButton", ({ canGoBack }) => {
+  if (canGoBack) {
+    window.history.back();
+  } else {
+    App.exitApp();
+  }
+});
 
 const rootEl = document.getElementById("root");
 if (!rootEl) {

@@ -23,7 +23,7 @@ function AuthPage() {
   // Automatically redirect if user logs in (e.g. by clicking email confirmation link)
   useEffect(() => {
     if (user) {
-      navigate({ to: "/verify" });
+      navigate({ to: "/verify", replace: true });
     }
   }, [user, navigate]);
   const [showRef, setShowRef] = useState(false);
@@ -74,7 +74,7 @@ function AuthPage() {
         } else {
           // Direct login (if email confirmation is disabled)
           toast.success("Registered successfully!");
-          navigate({ to: "/verify" });
+          navigate({ to: "/verify", replace: true });
         }
       } else {
         // Sign In
@@ -86,7 +86,7 @@ function AuthPage() {
         if (error) throw error;
 
         toast.success("Signed in successfully!");
-        navigate({ to: "/verify" });
+        navigate({ to: "/verify", replace: true });
       }
     } catch (err: any) {
       toast.error(err.message || "An error occurred.");
@@ -113,7 +113,7 @@ function AuthPage() {
       if (error) throw error;
 
       toast.success("Email verified successfully!");
-      navigate({ to: "/verify" });
+      navigate({ to: "/verify", replace: true });
     } catch (err: any) {
       toast.error(err.message || "Invalid OTP code.");
     } finally {
