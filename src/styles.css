@@ -1,0 +1,95 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-light: var(--primary-light);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-success-light: var(--success-light);
+  --color-warning: var(--warning);
+  --color-warning-light: var(--warning-light);
+  --color-danger: var(--danger);
+  --color-danger-light: var(--danger-light);
+  --color-yellow: var(--yellow);
+  --color-orange: var(--orange);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-display: "DM Sans", system-ui, sans-serif;
+}
+
+:root {
+  --radius: 0.875rem;
+  --background: #F0F4F8;
+  --foreground: #111928;
+  --card: #FFFFFF;
+  --card-foreground: #111928;
+  --popover: #FFFFFF;
+  --popover-foreground: #111928;
+  --primary: #1A56DB;
+  --primary-foreground: #FFFFFF;
+  --primary-light: #EBF2FF;
+  --secondary: #EBF2FF;
+  --secondary-foreground: #1A56DB;
+  --muted: #F0F4F8;
+  --muted-foreground: #6B7280;
+  --accent: #EBF2FF;
+  --accent-foreground: #1A56DB;
+  --success: #057A55;
+  --success-foreground: #FFFFFF;
+  --success-light: #DEF7EC;
+  --warning: #F97316;
+  --warning-light: #FFEDD5;
+  --danger: #E02424;
+  --danger-light: #FDE2E2;
+  --yellow: #FBBF24;
+  --orange: #F97316;
+  --destructive: #E02424;
+  --destructive-foreground: #FFFFFF;
+  --border: #E5E7EB;
+  --input: #E5E7EB;
+  --ring: #1A56DB;
+}
+
+.dark { color-scheme: light; }
+
+@layer base {
+  * { border-color: var(--color-border); }
+  html, body { background-color: #0b1220; }
+  body {
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3, h4, h5, h6 { font-family: var(--font-display); letter-spacing: -0.01em; }
+}
+
+@utility no-scrollbar {
+  &::-webkit-scrollbar { display: none; }
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
