@@ -7,7 +7,7 @@ on:
 
 jobs:
   build-apk:
-    name: Build Signed Release APK
+    name: Build Android APK
     runs-on: ubuntu-latest
 
     steps:
@@ -15,16 +15,26 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # ─── 2. Node.js Setup ──────────────────────────────────────────────────
-      - name: Set up Node.js 20
+      # ─── 2. Java Setup (must be before Gradle) ─────────────────────────────
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '21'
+
+      # ─── 3. Node.js Setup ──────────────────────────────────────────────────
+      - name: Set up Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
+
+      - name: Verify Node.js version
+        run: node -v
 
       - name: Install dependencies
         run: npm install
 
-      # ─── 3. Build Web App ──────────────────────────────────────────────────
+      # ─── 4. Build Web App ──────────────────────────────────────────────────
       - name: Build web app (production)
         run: npm run build
         env:
@@ -32,50 +42,24 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
-      # ─── 4. Capacitor Sync ─────────────────────────────────────────────────
-      - name: Sync Capacitor to Android
-        run: |
-          npx cap sync android
+      # ─── 5. Capacitor Sync ─────────────────────────────────────────────────
+      - name: Sync Capacitor assets to Android
+        run: npx cap sync android
         env:
           NODE_ENV: production
 
-      # ─── 5. Java Setup ─────────────────────────────────────────────────────
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-
-      # ─── 6. Keystore Setup ─────────────────────────────────────────────────
-      - name: Decode keystore from secret
+      # ─── 6. Build APK ──────────────────────────────────────────────────────
+      - name: Build Android APK
         run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/app/release.keystore
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
 
-      - name: Set Gradle permissions
-        run: chmod +x android/gradlew
-
-      # ─── 7. Build Signed APK ───────────────────────────────────────────────
-      - name: Build release APK
-        working-directory: android
-        run: ./gradlew assembleRelease --no-daemon
-        env:
-          KEYSTORE_PATH: release.keystore
-          KEY_STORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-
-      # ─── 8. Upload APK ─────────────────────────────────────────────────────
+      # ─── 7. Upload APK ─────────────────────────────────────────────────────
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ACCA-FR-release-${{ github.run_number }}
-          path: android/app/build/outputs/apk/release/app-release.apk
+          name: ACCA-FR-debug-${{ github.run_number }}
+          path: android/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
 
-      # ─── 9. Create GitHub Release (on tag push) ────────────────────────────
-      - name: Create Release
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: android/app/build/outputs/apk/release/app-release.apk
-          name: ACCA FR Mastery ${{ github.ref_name }}
