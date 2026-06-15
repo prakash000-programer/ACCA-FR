@@ -34,8 +34,8 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      # ─── 4. Build Web App + Generate Capacitor index.html ──────────────────
-      - name: Build web app and generate Capacitor entry point
+      # ─── 4. Build SPA for Capacitor ────────────────────────────────────────
+      - name: Build SPA (vite.capacitor.config.ts → dist/client/index.html)
         run: npm run build:mobile
         env:
           NODE_ENV: production
