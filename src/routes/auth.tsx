@@ -9,6 +9,45 @@ import { toast } from "sonner";
 
 const searchSchema = z.object({ mode: z.enum(["login", "signup"]).optional() });
 
+interface StrengthResult {
+  score: number;
+  label: string;
+  color: string;
+  checks: {
+    length: boolean;
+    hasNumber: boolean;
+    hasMixedCase: boolean;
+    hasSpecial: boolean;
+  };
+}
+
+const checkPasswordStrength = (pass: string): StrengthResult => {
+  const checks = {
+    length: pass.length >= 8,
+    hasNumber: /\d/.test(pass),
+    hasMixedCase: /[a-z]/.test(pass) && /[A-Z]/.test(pass),
+    hasSpecial: /[^A-Za-z0-9]/.test(pass),
+  };
+
+  let score = 0;
+  if (checks.length) score++;
+  if (checks.hasNumber) score++;
+  if (checks.hasMixedCase) score++;
+  if (checks.hasSpecial) score++;
+
+  let label = "Weak";
+  let color = "bg-danger"; // Red
+  if (score >= 4) {
+    label = "Strong";
+    color = "bg-success"; // Green
+  } else if (score >= 2) {
+    label = "Medium";
+    color = "bg-warning"; // Orange
+  }
+
+  return { score, label, color, checks };
+};
+
 export const Route = createFileRoute("/auth")({
   validateSearch: searchSchema,
   component: AuthPage,
@@ -22,13 +61,16 @@ function AuthPage() {
 
   // Automatically redirect if user logs in (e.g. by clicking email confirmation link)
   useEffect(() => {
-    if (user) {
+    const isMismatch = localStorage.getItem("device_mismatch") === "true";
+    if (user && !isMismatch) {
       navigate({ to: "/verify", replace: true });
     }
   }, [user, navigate]);
+
   const [showRef, setShowRef] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const strength = checkPasswordStrength(password);
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [college, setCollege] = useState("");
@@ -44,6 +86,18 @@ function AuthPage() {
     if (!email || !password) {
       toast.error("Please fill in all fields.");
       return;
+    }
+
+    if (isSignup) {
+      if (password.length < 6) {
+        toast.error("Password must be at least 6 characters.");
+        return;
+      }
+      const pStrength = checkPasswordStrength(password);
+      if (pStrength.score < 2) {
+        toast.error("Please choose a stronger password (at least Medium strength).");
+        return;
+      }
     }
 
     setLoading(true);
@@ -218,6 +272,43 @@ function AuthPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
+
+            {isSignup && password && (
+              <div className="mt-3 p-3 rounded-xl bg-background border border-border space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-muted-foreground font-semibold">Password Strength:</span>
+                  <span className={`text-[10px] font-bold ${
+                    strength.score >= 4 ? "text-success" : strength.score >= 2 ? "text-warning" : "text-danger"
+                  }`}>
+                    {strength.label}
+                  </span>
+                </div>
+                <div className="h-1.5 w-full bg-border rounded-full overflow-hidden flex gap-1">
+                  <div className={`h-full flex-1 rounded-l-full transition-colors ${strength.score >= 1 ? strength.color : "bg-muted"}`} />
+                  <div className={`h-full flex-1 transition-colors ${strength.score >= 2 ? strength.color : "bg-muted"}`} />
+                  <div className={`h-full flex-1 transition-colors ${strength.score >= 3 ? strength.color : "bg-muted"}`} />
+                  <div className={`h-full flex-1 rounded-r-full transition-colors ${strength.score >= 4 ? strength.color : "bg-muted"}`} />
+                </div>
+                <ul className="text-[9px] text-muted-foreground space-y-1 mt-1">
+                  <li className="flex items-center gap-1.5">
+                    <span className={`h-1.5 w-1.5 rounded-full ${strength.checks.length ? "bg-success" : "bg-muted-foreground"}`} />
+                    At least 8 characters
+                  </li>
+                  <li className="flex items-center gap-1.5">
+                    <span className={`h-1.5 w-1.5 rounded-full ${strength.checks.hasNumber ? "bg-success" : "bg-muted-foreground"}`} />
+                    At least one number (0-9)
+                  </li>
+                  <li className="flex items-center gap-1.5">
+                    <span className={`h-1.5 w-1.5 rounded-full ${strength.checks.hasMixedCase ? "bg-success" : "bg-muted-foreground"}`} />
+                    Uppercase & lowercase letters
+                  </li>
+                  <li className="flex items-center gap-1.5">
+                    <span className={`h-1.5 w-1.5 rounded-full ${strength.checks.hasSpecial ? "bg-success" : "bg-muted-foreground"}`} />
+                    Special character (e.g. !@#$)
+                  </li>
+                </ul>
+              </div>
+            )}
 
             {isSignup && (
               <div className="mt-4">

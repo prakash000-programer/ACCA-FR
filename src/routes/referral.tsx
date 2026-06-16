@@ -6,6 +6,7 @@ import { Copy, Gift, Share2, Users, Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { Share } from "@capacitor/share";
 
 export const Route = createFileRoute("/referral")({ component: ReferralPage });
 
@@ -78,19 +79,40 @@ function ReferralPage() {
   };
 
   const handleShare = async () => {
-    if (navigator.share) {
-      try {
+    try {
+      const canShareResult = await Share.canShare();
+      if (canShareResult.value) {
+        await Share.share({
+          title: "ACCA FR Mastery Referral",
+          text: shareText,
+          url: referralLink,
+          dialogTitle: "Share with friends",
+        });
+      } else if (navigator.share) {
         await navigator.share({
           title: "ACCA FR Mastery Referral",
           text: shareText,
           url: referralLink,
         });
-      } catch (err) {
-        console.log("Error sharing:", err);
+      } else {
+        handleCopy();
       }
-    } else {
-      // Fallback: Copy to clipboard
-      handleCopy();
+    } catch (err) {
+      console.log("Error sharing:", err);
+      // Fallback
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: "ACCA FR Mastery Referral",
+            text: shareText,
+            url: referralLink,
+          });
+        } catch (e) {
+          handleCopy();
+        }
+      } else {
+        handleCopy();
+      }
     }
   };
 
@@ -121,6 +143,18 @@ function ReferralPage() {
             <h2 className="mt-3 font-display font-bold text-xl">Share & save together</h2>
             <p className="mt-1 text-sm text-white/80">
               Friends get 10% off, and you unlock revision bonus chapters!
+            </p>
+          </div>
+
+          <div className="rounded-2xl bg-card border border-border p-5 text-center shadow-sm">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Your Referral Code
+            </p>
+            <div className="mt-2 text-3xl font-display font-black tracking-wider text-primary select-all">
+              {referralCode}
+            </div>
+            <p className="text-[10px] text-muted-foreground mt-1.5">
+              Show this to other students or copy the link below.
             </p>
           </div>
 

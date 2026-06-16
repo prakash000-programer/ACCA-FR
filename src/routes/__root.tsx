@@ -130,7 +130,7 @@ function RootComponent() {
 
 function RootComponentInner() {
   const { queryClient } = Route.useRouteContext();
-  const { user, loading, subscriptionStatus, subscriptionLoading } = useAuth();
+  const { user, loading, subscriptionStatus, subscriptionLoading, signOut } = useAuth();
   const router = useRouter();
   const navigate = useNavigate();
 
@@ -138,11 +138,35 @@ function RootComponentInner() {
     if (loading || subscriptionLoading) return;
 
     const path = router.state.location.pathname;
+    const isMismatch = localStorage.getItem("device_mismatch") === "true";
 
     // 1. Auth Guard: Protect all pages except '/' and '/auth'
     if (!user && path !== "/" && path !== "/auth") {
+      localStorage.removeItem("device_mismatch");
       navigate({ to: "/auth", search: { mode: "login" }, replace: true });
       return;
+    }
+
+    // Mismatch Guard: Protect all pages except '/verify' and '/contact' when device mismatch is active
+    if (user && isMismatch && path !== "/verify" && path !== "/contact" && path !== "/" && path !== "/auth") {
+      navigate({ to: "/verify", replace: true });
+      return;
+    }
+
+    // Auto-login: Redirect to verify if user is already logged in on splash or auth pages (only if no mismatch)
+    if (user && !isMismatch && (path === "/" || path === "/auth")) {
+      navigate({ to: "/verify", replace: true });
+      return;
+    }
+
+    // Handle back navigation on mismatch: if they navigated to Splash or Auth page, sign them out!
+    if (user && isMismatch && (path === "/" || path === "/auth")) {
+      signOut().catch(() => {});
+      return;
+    }
+
+    if (!user) {
+      localStorage.removeItem("device_mismatch");
     }
 
     // 2. Subscription Guard: Protect main app layout pages if not subscribed

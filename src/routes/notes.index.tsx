@@ -88,35 +88,7 @@ function NotesPage() {
     topics: chaptersMap[chName],
   }));
 
-  const displayChapters = chaptersList.length > 0 ? chaptersList : (loading ? [] : [
-    {
-      title: "Chapter 1 · Conceptual Framework",
-      topics: [
-        { id: "framework", title: "The IASB Conceptual Framework" },
-        { id: "qc", title: "Qualitative Characteristics" }
-      ] as any[],
-    },
-    {
-      title: "Chapter 2 · Group Accounts",
-      topics: [
-        { id: "consol-bs", title: "Consolidated Statement of Financial Position" },
-        { id: "consol-pl", title: "Consolidated P&L" },
-        { id: "assoc", title: "Associates & Joint Ventures" }
-      ] as any[],
-    },
-    {
-      title: "Chapter 3 · Revenue (IFRS 15)",
-      topics: [
-        { id: "ifrs15", title: "The 5-Step Revenue Model" }
-      ] as any[],
-    },
-    {
-      title: "Chapter 4 · Non-current Assets",
-      topics: [
-        { id: "ias-16", title: "IAS 16 Property, Plant & Equipment" }
-      ] as any[],
-    }
-  ]);
+  const displayChapters = chaptersList;
 
   return (
     <MobileFrame withTabs>

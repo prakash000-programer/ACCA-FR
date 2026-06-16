@@ -5,10 +5,52 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
 
+function calculateStreak(attempts: { attempted_at: string }[]): number {
+  if (!attempts || attempts.length === 0) return 0;
+  const attemptDates = attempts.map((a) => new Date(a.attempted_at).toDateString());
+  const uniqueDates = Array.from(new Set(attemptDates)).map((d) => new Date(d));
+  uniqueDates.sort((a, b) => b.getTime() - a.getTime());
+
+  if (uniqueDates.length === 0) return 0;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  const mostRecent = uniqueDates[0];
+  mostRecent.setHours(0, 0, 0, 0);
+
+  if (mostRecent.getTime() === today.getTime() || mostRecent.getTime() === yesterday.getTime()) {
+    let count = 1;
+    let ref = mostRecent;
+
+    for (let i = 1; i < uniqueDates.length; i++) {
+      const prev = uniqueDates[i];
+      prev.setHours(0, 0, 0, 0);
+
+      const diff = Math.abs(ref.getTime() - prev.getTime());
+      const diffDays = Math.ceil(diff / (1000 * 60 * 60 * 24));
+
+      if (diffDays === 1) {
+        count++;
+        ref = prev;
+      } else if (diffDays > 1) {
+        break;
+      }
+    }
+    return count;
+  }
+  return 0;
+}
+
 export const Route = createFileRoute("/home")({ component: HomePage });
 
 function HomePage() {
   const { user } = useAuth();
+  const [profile, setProfile] = useState<any>(null);
+  const [streakDays, setStreakDays] = useState(0);
   const [lastRead, setLastRead] = useState<any>(null);
   const [notesReadCount, setNotesReadCount] = useState(0);
   const [quizzesDoneCount, setQuizzesDoneCount] = useState(0);
@@ -55,15 +97,28 @@ function HomePage() {
     if (!user) return;
 
     const fetchStatsAndTasks = async () => {
-      // 4. Count unique quizzes done
+      // 1. Fetch user profile
+      const { data: prof, error: profError } = await supabase
+        .from("users")
+        .select("*")
+        .eq("id", user.id)
+        .single();
+      if (!profError && prof) {
+        setProfile(prof);
+      }
+
+      // 2. Fetch quiz attempts for count & streak
       const { data: attemptsData, error: attemptsError } = await supabase
         .from("quiz_attempts")
-        .select("quiz_id")
+        .select("quiz_id, attempted_at")
         .eq("user_id", user.id);
 
       if (!attemptsError && attemptsData) {
         const uniqueQuizIds = new Set(attemptsData.map((item: any) => item.quiz_id));
         setQuizzesDoneCount(uniqueQuizIds.size);
+
+        const calculatedStreak = calculateStreak(attemptsData);
+        setStreakDays(calculatedStreak);
       }
 
       // 5. Fetch urgent incomplete study task sorted by priority and date
@@ -91,24 +146,31 @@ function HomePage() {
   }, [user]);
 
   const hasLastRead = !!lastRead;
-  const completion = hasLastRead ? lastRead.progress : 64;
+  const completion = hasLastRead ? lastRead.progress : 0;
   const r = 38;
   const c = 2 * Math.PI * r;
   const offset = c - (completion / 100) * c;
 
-  const resumeTitle = hasLastRead ? lastRead.title : "IAS 16 Property, Plant & Equipment";
+  const resumeTitle = hasLastRead ? lastRead.title : "";
   const resumeSubtitle = hasLastRead 
     ? `Page ${lastRead.pageNum} of ${lastRead.numPages} · ${Math.max(1, Math.round((lastRead.numPages - lastRead.pageNum) * 1.5))} min left`
-    : "12 of 18 pages · 22 min left";
-  const resumeId = hasLastRead ? lastRead.id : "ias-16";
+    : "";
+  const resumeId = hasLastRead ? lastRead.id : "";
+
+  const hour = new Date().getHours();
+  let timeGreeting = "Good evening";
+  if (hour < 12) timeGreeting = "Good morning";
+  else if (hour < 17) timeGreeting = "Good afternoon";
+
+  const displayName = profile?.full_name || user?.email?.split("@")[0] || "Student";
 
   return (
     <MobileFrame withTabs>
       <div className="px-5 pt-5 pb-6 space-y-5">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs text-muted-foreground">Good evening,</p>
-            <h1 className="font-display font-bold text-2xl text-foreground">Prakash 👋</h1>
+            <p className="text-xs text-muted-foreground">{timeGreeting},</p>
+            <h1 className="font-display font-bold text-2xl text-foreground">{displayName} 👋</h1>
           </div>
           <div className="flex items-center gap-2">
             <Link
@@ -140,67 +202,83 @@ function HomePage() {
         </div>
 
         {/* progress + continue card */}
-        <div className="rounded-2xl bg-card border border-border p-4 flex items-center gap-4">
-          <div className="relative h-24 w-24 shrink-0">
-            <svg viewBox="0 0 100 100" className="-rotate-90">
-              <circle cx="50" cy="50" r={r} fill="none" stroke="var(--color-primary-light)" strokeWidth="9" />
-              <circle
-                cx="50"
-                cy="50"
-                r={r}
-                fill="none"
-                stroke="var(--color-primary)"
-                strokeWidth="9"
-                strokeLinecap="round"
-                strokeDasharray={c}
-                strokeDashoffset={offset}
-              />
-            </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="font-display font-bold text-xl text-primary">{completion}%</span>
-              <span className="text-[9px] text-muted-foreground uppercase tracking-wider">done</span>
+        {hasLastRead ? (
+          <div className="rounded-2xl bg-card border border-border p-4 flex items-center gap-4 animate-fade-in">
+            <div className="relative h-24 w-24 shrink-0">
+              <svg viewBox="0 0 100 100" className="-rotate-90">
+                <circle cx="50" cy="50" r={r} fill="none" stroke="var(--color-primary-light)" strokeWidth="9" />
+                <circle
+                  cx="50"
+                  cy="50"
+                  r={r}
+                  fill="none"
+                  stroke="var(--color-primary)"
+                  strokeWidth="9"
+                  strokeLinecap="round"
+                  strokeDasharray={c}
+                  strokeDashoffset={offset}
+                />
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="font-display font-bold text-xl text-primary">{completion}%</span>
+                <span className="text-[9px] text-muted-foreground uppercase tracking-wider">done</span>
+              </div>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Continue learning</p>
+              <p className="font-display font-semibold text-sm text-foreground truncate">
+                {resumeTitle}
+              </p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">{resumeSubtitle}</p>
+              <Link
+                to="/notes/$id"
+                params={{ id: resumeId }}
+                className="mt-2 inline-flex items-center gap-1.5 h-8 rounded-lg bg-success px-3 text-[12px] font-semibold text-white"
+              >
+                <Play size={12} fill="white" /> Resume
+              </Link>
             </div>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Continue learning</p>
-            <p className="font-display font-semibold text-sm text-foreground truncate">
-              {resumeTitle}
-            </p>
-            <p className="mt-0.5 text-[11px] text-muted-foreground">{resumeSubtitle}</p>
+        ) : (
+          <div className="rounded-2xl bg-card border border-border p-5 text-center flex flex-col items-center gap-2">
+            <BookOpen className="h-8 w-8 text-primary" />
+            <p className="font-display font-semibold text-sm text-foreground">Ready to start studying?</p>
+            <p className="text-xs text-muted-foreground">Read study notes to track your progress.</p>
             <Link
-              to="/notes/$id"
-              params={{ id: resumeId }}
-              className="mt-2 inline-flex items-center gap-1.5 h-8 rounded-lg bg-success px-3 text-[12px] font-semibold text-white"
+              to="/notes"
+              className="mt-1 inline-flex items-center justify-center h-9 px-4 rounded-xl bg-primary text-xs font-semibold text-white"
             >
-              <Play size={12} fill="white" /> Resume
+              Open Notes
             </Link>
           </div>
-        </div>
+        )}
 
         {/* stats */}
         <div className="grid grid-cols-3 gap-2">
           <Stat label="Notes Read" value={notesReadCount.toString()} icon={<BookOpen size={14} />} tint="bg-primary-light text-primary" />
           <Stat label="Quizzes Done" value={quizzesDoneCount.toString()} icon={<ListChecks size={14} />} tint="bg-success-light text-success" />
-          <Stat label="Streak" value="7d" icon={<Flame size={14} />} tint="bg-warning-light text-warning" />
+          <Stat label="Streak" value={`${streakDays}d`} icon={<Flame size={14} />} tint="bg-warning-light text-warning" />
         </div>
 
         {/* announcement */}
-        <Link
-          to="/notifications"
-          className="block rounded-2xl bg-primary-light border border-primary/15 p-4 flex gap-3 hover:bg-primary/20 transition-all text-left"
-        >
-          <div className="h-9 w-9 rounded-xl bg-primary flex items-center justify-center text-white shrink-0">
-            <Megaphone size={16} />
-          </div>
-          <div className="min-w-0">
-            <p className="font-display font-semibold text-sm text-foreground">
-              {latestNotification ? latestNotification.title : "Mock test this Sunday"}
-            </p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {latestNotification ? latestNotification.body : "Full FR mock at 10AM. Top scorers featured on leaderboard."}
-            </p>
-          </div>
-        </Link>
+        {latestNotification && (
+          <Link
+            to="/notifications"
+            className="block rounded-2xl bg-primary-light border border-primary/15 p-4 flex gap-3 hover:bg-primary/20 transition-all text-left animate-fade-in"
+          >
+            <div className="h-9 w-9 rounded-xl bg-primary flex items-center justify-center text-white shrink-0">
+              <Megaphone size={16} />
+            </div>
+            <div className="min-w-0">
+              <p className="font-display font-semibold text-sm text-foreground">
+                {latestNotification.title}
+              </p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {latestNotification.body}
+              </p>
+            </div>
+          </Link>
+        )}
 
         {/* urgent task */}
         {urgentTask && (

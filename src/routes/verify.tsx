@@ -59,10 +59,11 @@ function VerifyPage() {
 
   useEffect(() => {
     if (authLoading) return;
-    if (!user) {
+    if (!user && state !== "fail") {
       navigate({ to: "/auth", search: { mode: "login" }, replace: true });
       return;
     }
+    if (state === "fail") return;
 
     const verifyDevice = async () => {
       try {
@@ -95,6 +96,7 @@ function VerifyPage() {
         } else {
           // 4. Record exists but DIFFERENT device → block
           setState("fail");
+          localStorage.setItem("device_mismatch", "true");
         }
       } catch (err) {
         console.error("[Verify] Device verification error:", err);
@@ -105,7 +107,7 @@ function VerifyPage() {
     };
 
     verifyDevice();
-  }, [user, authLoading, navigate]);
+  }, [user, authLoading, navigate, state]);
 
   useEffect(() => {
     if (state === "success" && user) {
@@ -172,9 +174,14 @@ function VerifyPage() {
               <p className="mt-2 text-sm text-muted-foreground">
                 This account is linked to another device. Contact admin to reset.
               </p>
-              <Link to="/contact" className="mt-6 inline-flex h-11 items-center gap-2 rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground">
-                <Phone size={16} /> Contact Admin
-              </Link>
+              <div className="mt-6 flex flex-col gap-2.5 w-full max-w-[220px] mx-auto">
+                <Link to="/auth" search={{ mode: "login" }} className="inline-flex h-11 items-center justify-center rounded-xl border border-border bg-card text-sm font-semibold text-foreground hover:bg-accent transition-colors">
+                  Back to Login
+                </Link>
+                <Link to="/contact" className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground hover:bg-primary/95 transition-colors">
+                  <Phone size={16} /> Contact Admin
+                </Link>
+              </div>
             </>
           )}
         </div>

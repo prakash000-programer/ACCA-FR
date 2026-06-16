@@ -5,9 +5,10 @@ interface Props {
   children: ReactNode;
   withTabs?: boolean;
   bg?: string;
+  scrollable?: boolean;
 }
 
-export function MobileFrame({ children, withTabs = false, bg = "bg-background" }: Props) {
+export function MobileFrame({ children, withTabs = false, bg = "bg-background", scrollable = true }: Props) {
   return (
     <div className="min-h-screen w-full flex items-start sm:items-center justify-center bg-[#0b1220] sm:py-8">
       <div className="relative w-full sm:w-[390px] sm:h-[844px] sm:rounded-[44px] bg-black sm:p-2 sm:shadow-[0_30px_80px_-20px_rgba(26,86,219,0.35)]">
@@ -22,7 +23,11 @@ export function MobileFrame({ children, withTabs = false, bg = "bg-background" }
               </span>
             </span>
           </div>
-          <div className={`h-full overflow-y-auto no-scrollbar ${withTabs ? "pb-24" : ""} safe-pt sm:pt-7`}>
+          <div className={
+            scrollable
+              ? `h-full overflow-y-auto no-scrollbar ${withTabs ? "pb-24" : ""} safe-pt sm:pt-7`
+              : `h-full no-scrollbar ${withTabs ? "pb-[88px]" : ""} safe-pt sm:pt-7 flex flex-col overflow-hidden`
+          }>
             {children}
           </div>
           {withTabs && <BottomNav />}

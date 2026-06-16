@@ -1,5 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { Home, BookOpen, ListChecks, MessageCircle, User } from "lucide-react";
+import { useEffect, useState } from "react";
 
 const items = [
   { to: "/home", label: "Home", icon: Home },
@@ -11,6 +12,32 @@ const items = [
 
 export function BottomNav() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+
+  useEffect(() => {
+    const handleFocusIn = (e: FocusEvent) => {
+      const target = e.target as HTMLElement;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA")) {
+        setIsKeyboardOpen(true);
+      }
+    };
+    const handleFocusOut = (e: FocusEvent) => {
+      const target = e.target as HTMLElement;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA")) {
+        setIsKeyboardOpen(false);
+      }
+    };
+
+    document.addEventListener("focusin", handleFocusIn);
+    document.addEventListener("focusout", handleFocusOut);
+    return () => {
+      document.removeEventListener("focusin", handleFocusIn);
+      document.removeEventListener("focusout", handleFocusOut);
+    };
+  }, []);
+
+  if (isKeyboardOpen) return null;
+
   return (
     <nav className="absolute bottom-0 inset-x-0 bg-card border-t border-border px-2 pt-2 pb-3 sm:rounded-b-[36px]">
       <ul className="flex items-center justify-between">

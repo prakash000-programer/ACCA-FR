@@ -56,24 +56,7 @@ const CHAPTERS = [
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
-const adminSeed: AdminTask[] = [
-  {
-    id: "a1",
-    title: "Submit Mock Exam 1 — Section A",
-    chapter: "Mock Exam · Sept Sitting",
-    due: todayISO(),
-    assignedBy: "Tutor Sarah",
-    completed: false,
-  },
-  {
-    id: "a2",
-    title: "Watch live class recording: Consolidations",
-    chapter: "Ch 6 · Consolidated SFP",
-    due: "2026-06-16",
-    assignedBy: "Admin",
-    completed: false,
-  },
-];
+const adminSeed: AdminTask[] = [];
 
 const priorityStyles: Record<Priority, { pill: string; dot: string; label: string }> = {
   high: { pill: "bg-[#E02424] text-white", dot: "bg-[#E02424]", label: "High" },

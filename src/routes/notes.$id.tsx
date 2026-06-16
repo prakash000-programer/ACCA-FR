@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { MobileFrame } from "@/components/mobile/MobileFrame";
 import { TopBar } from "@/components/mobile/TopBar";
 import { Bookmark, MessageSquare, ChevronLeft, ChevronRight, Sparkles, Award } from "lucide-react";
@@ -8,7 +8,12 @@ import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { ScreenSecurity } from "@/plugins/ScreenSecurity";
 
-export const Route = createFileRoute("/notes/$id")({ component: PdfViewer });
+export const Route = createFileRoute("/notes/$id")({
+  component: () => {
+    const { id } = Route.useParams();
+    return <PdfViewer key={id} />;
+  }
+});
 
 function PdfViewer() {
   const { id } = Route.useParams();
@@ -23,6 +28,7 @@ function PdfViewer() {
   const [pageNum, setPageNum] = useState(1);
   const [numPages, setNumPages] = useState(0);
   const [renderingPage, setRenderingPage] = useState(false);
+  const loadedIdRef = useRef<string | null>(null);
 
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
   const showFallback = !isUuid || !pdfUrl;
@@ -62,6 +68,8 @@ function PdfViewer() {
       return;
     }
 
+    let active = true;
+
     const fetchPdf = async () => {
       try {
         setLoading(true);
@@ -71,6 +79,7 @@ function PdfViewer() {
           .eq("id", id)
           .single();
 
+        if (!active) return;
         if (error) throw error;
         setContent(data);
 
@@ -82,6 +91,7 @@ function PdfViewer() {
             .eq("is_published", true)
             .limit(1);
 
+          if (!active) return;
           if (quizData && quizData.length > 0) {
             setLinkedQuizId(quizData[0].id);
           }
@@ -93,18 +103,27 @@ function PdfViewer() {
             .from("acca-pdfs")
             .createSignedUrl(data.pdf_path, 900);
 
+          if (!active) return;
           if (signError) throw signError;
           setPdfUrl(signedData.signedUrl);
         }
       } catch (err) {
-        console.error("Error loading content PDF:", err);
-        toast.error("Failed to load PDF.");
+        if (active) {
+          console.error("Error loading content PDF:", err);
+          toast.error("Failed to load PDF.");
+        }
       } finally {
-        setLoading(false);
+        if (active) {
+          setLoading(false);
+        }
       }
     };
 
     fetchPdf();
+
+    return () => {
+      active = false;
+    };
   }, [id, isUuid]);
 
   // Load PDF.js library and fetch document
@@ -177,6 +196,7 @@ function PdfViewer() {
           console.log("[PDF Viewer] PDF document parsed successfully. Pages:", pdf.numPages);
           setPdfDoc(pdf);
           setNumPages(pdf.numPages);
+          loadedIdRef.current = id;
         }
       } catch (err: any) {
         console.error("[PDF Viewer] Critical error loading/parsing PDF:", err);
@@ -191,7 +211,7 @@ function PdfViewer() {
     return () => {
       active = false;
     };
-  }, [pdfUrl, isUuid]);
+  }, [pdfUrl, isUuid, id]);
 
   // Render current page when document or page number changes
   useEffect(() => {
@@ -237,12 +257,30 @@ function PdfViewer() {
     };
   }, [pdfDoc, pageNum]);
 
-  // Save progress & last read record to localStorage
+
+
+  // Save progress & last read record to localStorage (only increase progress)
   useEffect(() => {
-    if (pdfDoc && numPages > 0) {
-      const progress = Math.round((pageNum / numPages) * 100);
-      localStorage.setItem(`pdf_progress_${id}`, JSON.stringify({ pageNum, numPages, progress }));
-      localStorage.setItem(`pdf_last_read`, JSON.stringify({ id, title: titleText, pageNum, numPages, progress, timestamp: Date.now() }));
+    if (pdfDoc && numPages > 0 && loadedIdRef.current === id) {
+      const newProgress = Math.round((pageNum / numPages) * 100);
+      
+      let existingProgress = 0;
+      const saved = localStorage.getItem(`pdf_progress_${id}`);
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (parsed && typeof parsed.progress === "number") {
+            existingProgress = parsed.progress;
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      }
+      
+      const finalProgress = Math.max(existingProgress, newProgress);
+      
+      localStorage.setItem(`pdf_progress_${id}`, JSON.stringify({ pageNum, numPages, progress: finalProgress }));
+      localStorage.setItem(`pdf_last_read`, JSON.stringify({ id, title: titleText, pageNum, numPages, progress: finalProgress, timestamp: Date.now() }));
     }
   }, [id, pageNum, numPages, titleText, pdfDoc]);
 
@@ -261,11 +299,9 @@ function PdfViewer() {
     }
   }, [id]);
 
-
-
   return (
-    <MobileFrame bg="bg-card">
-      <div className="flex flex-col min-h-[calc(100dvh-28px)] sm:min-h-[calc(844px-28px)]">
+    <MobileFrame bg="bg-card" scrollable={false}>
+      <div className="flex flex-col h-full">
         <TopBar
           title={titleText}
           back="/notes"
@@ -309,64 +345,37 @@ function PdfViewer() {
         />
 
         <div 
-          className="flex-1 relative p-1 min-h-[60vh] select-none"
+          className="flex-1 overflow-y-auto px-4 py-4 select-none relative z-0 bg-background/20"
           onContextMenu={(e) => e.preventDefault()}
         >
-
-        {loading ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center text-muted-foreground">
-            <div className="h-8 w-8 rounded-full border-2 border-primary/20 border-t-primary animate-spin mb-4" />
-            <p className="text-sm">Fetching protected file...</p>
-          </div>
-        ) : showFallback ? (
-          <article className="relative space-y-4 text-foreground z-0">
-            <h2 className="font-display font-bold text-xl">IAS 16 — Property, Plant & Equipment</h2>
-            <p className="text-sm leading-relaxed text-muted-foreground">
-              IAS 16 prescribes the accounting treatment for property, plant and equipment (PPE) so that
-              users of the financial statements can discern information about an entity's investment in
-              its PPE and the changes in such investment.
-            </p>
-
-            <h3 className="font-display font-semibold text-base pt-2">Recognition</h3>
-            <p className="text-sm leading-relaxed">
-              The cost of an item of PPE shall be recognised as an asset if, and only if:
-            </p>
-            <ul className="text-sm space-y-1.5 pl-4 list-disc marker:text-primary">
-              <li>It is probable that future economic benefits will flow to the entity; and</li>
-              <li>The cost of the item can be measured reliably.</li>
-            </ul>
-
-            <h3 className="font-display font-semibold text-base pt-2">Initial Measurement</h3>
-            <p className="text-sm leading-relaxed">
-              An item of PPE that qualifies for recognition shall be measured at its cost, including
-              purchase price, directly attributable costs, and the initial estimate of dismantling costs.
-            </p>
-
-            <div className="rounded-xl bg-primary-light border border-primary/15 p-3 mt-2">
-              <p className="text-xs font-display font-semibold text-primary">Exam tip</p>
-              <p className="text-xs text-foreground mt-1">
-                Subsequent expenditure is capitalised only if it meets the recognition criteria — routine
-                maintenance is expensed.
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-20 text-center text-muted-foreground">
+              <div className="h-8 w-8 rounded-full border-2 border-primary/20 border-t-primary animate-spin mb-4" />
+              <p className="text-sm">Fetching protected file...</p>
+            </div>
+          ) : showFallback ? (
+            <div className="flex flex-col items-center justify-center py-20 text-center text-muted-foreground">
+              <BookOpen size={36} className="text-primary/60 mb-3" />
+              <h3 className="font-display font-semibold text-[14px] text-foreground">No content available</h3>
+              <p className="text-[12px] text-muted-foreground mt-1 px-4">
+                This topic does not have a PDF document uploaded yet.
               </p>
             </div>
-          </article>
-        ) : (
-          <div className="w-full rounded-lg overflow-hidden border border-border bg-background relative z-0 flex justify-center">
-            {renderingPage && !pdfDoc && (
-              <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-20">
-                <div className="h-6 w-6 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
-              </div>
-            )}
-            <canvas id="pdf-canvas" className="w-full h-auto max-w-full shadow-sm" />
-          </div>
-        )}
-      </div>
+          ) : (
+            <div className="w-full rounded-lg overflow-hidden border border-border bg-background relative z-0 flex justify-center">
+              {renderingPage && !pdfDoc && (
+                <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-20">
+                  <div className="h-6 w-6 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
+                 </div>
+              )}
+              <canvas id="pdf-canvas" className="w-full h-auto max-w-full shadow-sm" />
+            </div>
+          )}
+        </div>
 
-
-
-        {/* bottom toolbar */}
+        {/* stable bottom switcher toolbar */}
         {!loading && !showFallback && (
-          <div className="mt-auto bg-card border-t border-border px-4 py-3 flex items-center justify-between z-20">
+          <div className="shrink-0 bg-card border-t border-border px-4 py-3.5 flex items-center justify-between z-20 shadow-md">
             <span className="text-xs font-medium text-muted-foreground">
               Page {pageNum} of {numPages || "..."}
             </span>
@@ -374,14 +383,14 @@ function PdfViewer() {
               <button
                 onClick={() => setPageNum((prev) => Math.max(prev - 1, 1))}
                 disabled={pageNum <= 1 || renderingPage}
-                className={`h-9 w-9 rounded-lg bg-background border border-border flex items-center justify-center ${pageNum <= 1 || renderingPage ? "opacity-50 cursor-not-allowed" : "hover:bg-accent"}`}
+                className={`h-9 w-9 rounded-lg bg-background border border-border flex items-center justify-center ${pageNum <= 1 || renderingPage ? "opacity-50 cursor-not-allowed" : "hover:bg-accent active:scale-95 transition-all"}`}
               >
                 <ChevronLeft size={16} />
               </button>
               <button
                 onClick={() => setPageNum((prev) => Math.min(prev + 1, numPages))}
                 disabled={pageNum >= numPages || renderingPage}
-                className={`h-9 w-9 rounded-lg bg-background border border-border flex items-center justify-center ${pageNum >= numPages || renderingPage ? "opacity-50 cursor-not-allowed" : "hover:bg-accent"}`}
+                className={`h-9 w-9 rounded-lg bg-background border border-border flex items-center justify-center ${pageNum >= numPages || renderingPage ? "opacity-50 cursor-not-allowed" : "hover:bg-accent active:scale-95 transition-all"}`}
               >
                 <ChevronRight size={16} />
               </button>

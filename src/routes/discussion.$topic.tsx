@@ -7,7 +7,12 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/discussion/$topic")({ component: DiscussionPage });
+export const Route = createFileRoute("/discussion/$topic")({
+  component: () => {
+    const { topic } = Route.useParams();
+    return <DiscussionPage key={topic} />;
+  }
+});
 
 function formatRelativeTime(dateStr: string) {
   const d = new Date(dateStr);
@@ -60,6 +65,8 @@ function DiscussionPage() {
 
   // Initial load
   useEffect(() => {
+    let active = true;
+
     const loadData = async () => {
       setLoading(true);
       try {
@@ -70,18 +77,28 @@ function DiscussionPage() {
             .select("title, chapter, topic")
             .eq("id", topic)
             .single();
+          
+          if (!active) return;
           if (data) {
             setContentInfo(data);
           }
           await fetchComments();
         }
       } catch (err) {
-        console.error("Error loading discussion page:", err);
+        if (active) {
+          console.error("Error loading discussion page:", err);
+        }
       } finally {
-        setLoading(false);
+        if (active) {
+          setLoading(false);
+        }
       }
     };
     loadData();
+
+    return () => {
+      active = false;
+    };
   }, [topic, isUuid]);
 
   // Real-time Postgres changes subscription
