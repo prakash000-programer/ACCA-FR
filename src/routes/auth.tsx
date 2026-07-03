@@ -6,6 +6,7 @@ import { MobileFrame } from "@/components/mobile/MobileFrame";
 import { Mail, Lock, ChevronLeft, ShieldCheck, Gift, User, Phone, School, BookOpen, Calendar } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
+import { Capacitor } from "@capacitor/core";
 
 const searchSchema = z.object({ mode: z.enum(["login", "signup"]).optional() });
 
@@ -102,20 +103,26 @@ function AuthPage() {
     try {
       if (isSignup) {
         // Sign Up
+        const isNative = Capacitor.isNativePlatform();
+        const signupOptions: any = {
+          data: {
+            full_name: fullName || email.split("@")[0],
+            phone_number: phone,
+            college: college,
+            course: course,
+            year_of_study: yearOfStudy,
+            referral_code_used: referralCode || null,
+          },
+        };
+
+        if (!isNative) {
+          signupOptions.emailRedirectTo = `${window.location.origin}/confirm-email`;
+        }
+
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
-          options: {
-            emailRedirectTo: `${window.location.origin}/confirm-email`,
-            data: {
-              full_name: fullName || email.split("@")[0],
-              phone_number: phone,
-              college: college,
-              course: course,
-              year_of_study: yearOfStudy,
-              referral_code_used: referralCode || null,
-            },
-          },
+          options: signupOptions,
         });
 
         if (error) throw error;
