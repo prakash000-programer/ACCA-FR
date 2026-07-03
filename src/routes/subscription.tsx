@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { MobileFrame } from "@/components/mobile/MobileFrame";
-import { Check, Crown, Phone } from "lucide-react";
+import { Check, Crown, Phone, LogOut } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -18,7 +18,7 @@ const features = [
 ];
 
 function SubscriptionPage() {
-  const { user, subscriptionStatus, refreshSubscriptionStatus } = useAuth();
+  const { user, subscriptionStatus, refreshSubscriptionStatus, signOut } = useAuth();
   const navigate = useNavigate();
 
 
@@ -30,6 +30,17 @@ function SubscriptionPage() {
 
   const handleSimulatedPayment = () => {
     toast.info("UPI Payment Gateway is currently disabled. Please use 'Contact Admin' below to get access.");
+  };
+
+  const handleBackToLogin = async () => {
+    try {
+      localStorage.removeItem("device_mismatch");
+      await signOut();
+      navigate({ to: "/auth", search: { mode: "login" } });
+    } catch (err) {
+      console.error("Error signing out:", err);
+      navigate({ to: "/auth", search: { mode: "login" } });
+    }
   };
 
 
@@ -83,6 +94,13 @@ function SubscriptionPage() {
           >
             <Phone size={16} /> Contact Admin
           </Link>
+
+          <button
+            onClick={handleBackToLogin}
+            className="mt-3 w-full h-12 rounded-xl border border-border bg-card text-muted-foreground font-display font-semibold flex items-center justify-center gap-2 hover:bg-accent hover:text-foreground active:scale-[0.98] transition-all"
+          >
+            <LogOut size={16} /> Back to Login
+          </button>
         </div>
       </div>
     </MobileFrame>

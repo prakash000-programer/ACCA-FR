@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState, useEffect } from "react";
 import { MobileFrame } from "@/components/mobile/MobileFrame";
 import { TopBar } from "@/components/mobile/TopBar";
-import { Flame, AlertTriangle, Check, Target, Loader2, BookOpen } from "lucide-react";
+import { Flame, AlertTriangle, Check, Target, Loader2, BookOpen, ChevronLeft, ChevronRight } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -75,25 +75,112 @@ function ProgressPage() {
     fetchProgressData();
   }, [user]);
 
-  // Heatmap intensity levels: last 35 days study activity
-  const heat = useMemo(() => {
-    return Array.from({ length: 35 }, (_, index) => {
-      const dateToCheck = new Date();
-      dateToCheck.setDate(dateToCheck.getDate() - (34 - index));
-      dateToCheck.setHours(0, 0, 0, 0);
+  // Selected month state
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const d = new Date();
+    d.setDate(1); // 1st of the current month
+    d.setHours(0, 0, 0, 0);
+    return d;
+  });
 
-      const count = attempts.filter((a) => {
-        const ad = new Date(a.attempted_at);
-        ad.setHours(0, 0, 0, 0);
-        return ad.getTime() === dateToCheck.getTime();
-      }).length;
+  const [showMonthDropdown, setShowMonthDropdown] = useState(false);
+  const [showYearDropdown, setShowYearDropdown] = useState(false);
 
-      return Math.min(4, count);
+  const months = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+
+  const years = Array.from({ length: 26 }, (_, i) => 2025 + i); // 2025 to 2050
+
+  // Close picker dropdowns on click outside
+  useEffect(() => {
+    if (!showMonthDropdown && !showYearDropdown) return;
+    const handleClose = () => {
+      setShowMonthDropdown(false);
+      setShowYearDropdown(false);
+    };
+    const timer = setTimeout(() => {
+      window.addEventListener("click", handleClose);
+    }, 0);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("click", handleClose);
+    };
+  }, [showMonthDropdown, showYearDropdown]);
+
+  const prevMonth = () => {
+    setSelectedDate((prev) => {
+      const next = new Date(prev);
+      next.setMonth(prev.getMonth() - 1);
+      return next;
     });
-  }, [attempts]);
+  };
 
-  const days = ["M", "T", "W", "T", "F", "S", "S"];
-  const tints = ["bg-background border border-border/40", "bg-primary/15", "bg-primary/35", "bg-primary/60", "bg-primary"];
+  const nextMonth = () => {
+    setSelectedDate((prev) => {
+      const next = new Date(prev);
+      next.setMonth(prev.getMonth() + 1);
+      return next;
+    });
+  };
+
+  // Heatmap intensity levels: selected month aligned to Mon-Sun
+  const heat = useMemo(() => {
+    const year = selectedDate.getFullYear();
+    const month = selectedDate.getMonth();
+
+    const monthStart = new Date(year, month, 1);
+    const monthEnd = new Date(year, month + 1, 0); // last day of month
+
+    // Find the Monday of the week containing the 1st of the month
+    const startDay = monthStart.getDay();
+    const startOffset = startDay === 0 ? 6 : startDay - 1;
+    const gridStart = new Date(monthStart);
+    gridStart.setDate(monthStart.getDate() - startOffset);
+    gridStart.setHours(0, 0, 0, 0);
+
+    // Find the Sunday of the week containing the last day of the month
+    const endDay = monthEnd.getDay();
+    const endOffset = endDay === 0 ? 0 : 7 - endDay;
+    const gridEnd = new Date(monthEnd);
+    gridEnd.setDate(monthEnd.getDate() + endOffset);
+    gridEnd.setHours(23, 59, 59, 999);
+
+    // Group attempts by date string
+    const attemptCounts: Record<string, number> = {};
+    attempts.forEach((a) => {
+      const d = new Date(a.attempted_at);
+      const dateStr = d.toDateString();
+      attemptCounts[dateStr] = (attemptCounts[dateStr] || 0) + 1;
+    });
+
+    const daysArray = [];
+    const tempDate = new Date(gridStart);
+    while (tempDate <= gridEnd) {
+      const dateStr = tempDate.toDateString();
+      const count = attemptCounts[dateStr] || 0;
+      const isCurrentMonth = tempDate.getMonth() === month;
+
+      daysArray.push({
+        date: new Date(tempDate),
+        count,
+        level: Math.min(4, count),
+        isCurrentMonth,
+      });
+      tempDate.setDate(tempDate.getDate() + 1);
+    }
+    return daysArray;
+  }, [selectedDate, attempts]);
+
+  const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  const tints = [
+    "bg-slate-100 dark:bg-slate-800/60 border border-border/10",
+    "bg-primary/20 dark:bg-primary/15",
+    "bg-primary/45 dark:bg-primary/35",
+    "bg-primary/70 dark:bg-primary/60",
+    "bg-primary dark:bg-primary",
+  ];
 
   // Syllabus coverage calculations
   const coveredCount = useMemo(() => {
@@ -199,29 +286,162 @@ function ProgressPage() {
           </div>
 
           {/* heatmap */}
-          <div className="rounded-2xl bg-card border border-border p-4">
-            <div className="flex items-center justify-between">
-              <h3 className="font-display font-semibold text-sm">Study activity</h3>
-              <span className="text-[11px] text-muted-foreground">Last 5 weeks</span>
+          <div className="rounded-2xl bg-card border border-border p-4 shadow-sm">
+            <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between mb-4">
+              <div>
+                <h3 className="font-display font-bold text-sm text-foreground">Study activity</h3>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Your quiz attempts for this month</p>
+              </div>
+              <div className="flex items-center justify-between sm:justify-end gap-2.5">
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={prevMonth}
+                    className="h-7 w-7 rounded-lg border border-border bg-background flex items-center justify-center hover:bg-accent text-foreground transition-all active:scale-95 shrink-0"
+                    aria-label="Previous month"
+                  >
+                    <ChevronLeft size={14} />
+                  </button>
+
+                  <div className="flex items-center gap-1.5 relative select-none">
+                    {/* Month selector dropdown */}
+                    <div className="relative">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowYearDropdown(false);
+                          setShowMonthDropdown((prev) => !prev);
+                        }}
+                        className="font-display font-bold text-xs text-foreground bg-accent/40 hover:bg-accent px-2 py-1 rounded-md transition-all flex items-center gap-1 active:scale-95"
+                      >
+                        {selectedDate.toLocaleString(undefined, { month: "short" })}
+                      </button>
+                      {showMonthDropdown && (
+                        <div className="absolute left-0 mt-1 z-30 w-28 rounded-lg bg-card border border-border shadow-lg max-h-48 overflow-y-auto py-1 animate-scale-in scrollbar-none">
+                          {months.map((m, idx) => (
+                            <button
+                              key={m}
+                              onClick={() => {
+                                setSelectedDate((prev) => {
+                                  const next = new Date(prev);
+                                  next.setMonth(idx);
+                                  return next;
+                                });
+                                setShowMonthDropdown(false);
+                              }}
+                              className={`w-full text-left px-2.5 py-1.5 text-[11px] font-medium transition-colors hover:bg-accent ${
+                                selectedDate.getMonth() === idx ? "text-primary font-bold bg-primary-light/30" : "text-foreground"
+                              }`}
+                            >
+                              {m}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Year selector dropdown */}
+                    <div className="relative">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowMonthDropdown(false);
+                          setShowYearDropdown((prev) => !prev);
+                        }}
+                        className="font-display font-bold text-xs text-foreground bg-accent/40 hover:bg-accent px-2 py-1 rounded-md transition-all flex items-center gap-1 active:scale-95"
+                      >
+                        {selectedDate.getFullYear()}
+                      </button>
+                      {showYearDropdown && (
+                        <div className="absolute right-0 mt-1 z-30 w-20 rounded-lg bg-card border border-border shadow-lg max-h-48 overflow-y-auto py-1 animate-scale-in scrollbar-none">
+                          {years.map((y) => (
+                            <button
+                              key={y}
+                              onClick={() => {
+                                setSelectedDate((prev) => {
+                                  const next = new Date(prev);
+                                  next.setFullYear(y);
+                                  return next;
+                                });
+                                setShowYearDropdown(false);
+                              }}
+                              className={`w-full text-left px-2.5 py-1.5 text-[11px] font-medium transition-colors hover:bg-accent ${
+                                selectedDate.getFullYear() === y ? "text-primary font-bold bg-primary-light/30" : "text-foreground"
+                              }`}
+                            >
+                              {y}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={nextMonth}
+                    className="h-7 w-7 rounded-lg border border-border bg-background flex items-center justify-center hover:bg-accent text-foreground transition-all active:scale-95 shrink-0"
+                    aria-label="Next month"
+                  >
+                    <ChevronRight size={14} />
+                  </button>
+                </div>
+                <span className="font-display font-semibold text-[10px] text-primary bg-primary-light/50 px-2 py-0.5 rounded-full shrink-0">
+                  {attempts.length} total
+                </span>
+              </div>
             </div>
-            <div className="mt-3 grid grid-cols-[16px_1fr] gap-2">
-              <div className="flex flex-col gap-1.5 text-[9px] text-muted-foreground pt-1">
+            
+            <div className="pb-1 select-none">
+              {/* Horizontal Weekdays Header */}
+              <div className="grid grid-cols-7 gap-[5px] text-center text-[10px] text-muted-foreground font-semibold mb-2">
                 {days.map((d, i) => (
-                  <span key={i} className="h-4">{d}</span>
+                  <span key={i}>{d}</span>
                 ))}
               </div>
-              <div className="grid grid-flow-col grid-rows-7 gap-1.5">
-                {heat.map((v, i) => (
-                  <div key={i} className={`h-4 w-4 rounded ${tints[v]}`} />
-                ))}
+
+              {/* Grid of days (Standard 7-column calendar format) */}
+              <div className="grid grid-cols-7 gap-[5px]">
+                {heat.map((d, i) => {
+                  const dateStr = d.date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+                  const tooltip = `${dateStr}: ${d.count} ${d.count === 1 ? "attempt" : "attempts"}`;
+                  
+                  if (!d.isCurrentMonth) {
+                    // Out of month days rendered as subtle, low-opacity placeholder boxes
+                    return (
+                      <div 
+                        key={i} 
+                        className="aspect-square rounded-[4px] bg-slate-50 dark:bg-slate-900/10 opacity-30 border border-border/5" 
+                      />
+                    );
+                  }
+
+                  const textColor = d.level === 0 
+                    ? "text-slate-400 dark:text-slate-500" 
+                    : d.level === 1 || d.level === 2 
+                      ? "text-primary dark:text-primary-light font-bold" 
+                      : "text-white font-bold";
+                  
+                  return (
+                    <div
+                      key={i}
+                      title={tooltip}
+                      className={`aspect-square rounded-[4px] transition-all duration-200 hover:scale-105 hover:ring-2 hover:ring-primary/50 cursor-pointer flex items-center justify-center text-[10px] ${tints[d.level]} ${textColor}`}
+                    >
+                      {d.date.getDate()}
+                    </div>
+                  );
+                })}
               </div>
             </div>
-            <div className="mt-3 flex items-center justify-end gap-1.5 text-[10px] text-muted-foreground">
-              Less
-              {tints.map((t, i) => (
-                <span key={i} className={`h-3 w-3 rounded ${t}`} />
-              ))}
-              More
+
+            <div className="mt-4 flex items-center justify-between border-t border-border/50 pt-3">
+              <span className="text-[9px] text-muted-foreground">Interact with cells to view metrics</span>
+              <div className="flex items-center gap-1 text-[9px] text-muted-foreground">
+                <span>Less</span>
+                {tints.map((t, i) => (
+                  <span key={i} className={`h-2.5 w-2.5 rounded-[2px] ${t}`} />
+                ))}
+                <span>More</span>
+              </div>
             </div>
           </div>
 

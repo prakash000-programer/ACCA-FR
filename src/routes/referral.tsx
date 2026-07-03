@@ -26,7 +26,7 @@ function ReferralPage() {
         // Fetch user profile
         let { data: profile, error } = await supabase
           .from("users")
-          .select("referral_code")
+          .select("referral_code, referral_signup_count")
           .eq("id", user.id)
           .single();
 
@@ -48,18 +48,7 @@ function ReferralPage() {
         }
 
         setReferralCode(code || "ACCAFR");
-
-        // Count referrals: other users referred by this code
-        if (code) {
-          const { count, error: countError } = await supabase
-            .from("users")
-            .select("id", { count: "exact", head: true })
-            .eq("referred_by", code);
-
-          if (!countError && count !== null) {
-            setReferralsCount(count);
-          }
-        }
+        setReferralsCount(profile?.referral_signup_count || 0);
       } catch (err) {
         console.error("Error loading referrals:", err);
       } finally {

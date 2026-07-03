@@ -100,17 +100,39 @@ function TasksPage() {
 
       if (error) throw error;
 
-      const mapped: Task[] = (data || []).map((t) => ({
-        id: t.id,
-        title: t.title || "",
-        chapter: t.chapter_tag || "",
-        priority: (t.priority || "medium") as Priority,
-        due: t.due_date || todayISO(),
-        notes: t.notes || "",
-        completed: t.is_completed || false,
-        completedAt: t.completed_at || undefined,
-      }));
-      setTasks(mapped);
+      const rawTasks = data || [];
+
+      // 1. Map personal tasks (where notes does NOT start with "Assigned by: ")
+      const mappedPersonal: Task[] = rawTasks
+        .filter((t: any) => !t.notes?.startsWith("Assigned by: "))
+        .map((t) => ({
+          id: t.id,
+          title: t.title || "",
+          chapter: t.chapter_tag || "",
+          priority: (t.priority || "medium") as Priority,
+          due: t.due_date || todayISO(),
+          notes: t.notes || "",
+          completed: t.is_completed || false,
+          completedAt: t.completed_at || undefined,
+        }));
+      setTasks(mappedPersonal);
+
+      // 2. Map admin-assigned tasks (where notes starts with "Assigned by: ")
+      const mappedAdmin: AdminTask[] = rawTasks
+        .filter((t: any) => t.notes?.startsWith("Assigned by: "))
+        .map((t) => {
+          const notesText = t.notes || "";
+          const assignedBy = notesText.split("\n")[0].replace("Assigned by: ", "");
+          return {
+            id: t.id,
+            title: t.title || "",
+            chapter: t.chapter_tag || "General",
+            due: t.due_date || todayISO(),
+            assignedBy,
+            completed: t.is_completed || false,
+          };
+        });
+      setAdminTasks(mappedAdmin);
     } catch (err) {
       console.error("Error fetching tasks:", err);
     } finally {
@@ -120,23 +142,86 @@ function TasksPage() {
 
   useEffect(() => {
     fetchTasks();
+
+    if (!user) return;
+
+    // Subscribe to realtime updates for study_tasks (only for the current user's rows)
+    const channel = supabase
+      .channel("user-tasks-realtime")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "study_tasks",
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          fetchTasks();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user]);
 
-  function toggleAdmin(id: string) {
+  // Close menu on click outside
+  useEffect(() => {
+    if (!openMenu) return;
+    const handleClose = () => setOpenMenu(null);
+    const timer = setTimeout(() => {
+      window.addEventListener("click", handleClose);
+    }, 0);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("click", handleClose);
+    };
+  }, [openMenu]);
+
+  async function toggleAdmin(id: string) {
+    const task = adminTasks.find((t) => t.id === id);
+    if (!task) return;
+
+    const nextCompleted = !task.completed;
+    const completedAtISO = nextCompleted ? new Date().toISOString() : null;
+
     setAdminTasks((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t))
+      prev.map((t) => (t.id === id ? { ...t, completed: nextCompleted } : t))
     );
     setJustChecked(id);
     setTimeout(() => setJustChecked((cur) => (cur === id ? null : cur)), 600);
+
+    try {
+      const { error } = await supabase
+        .from("study_tasks")
+        .update({
+          is_completed: nextCompleted,
+          completed_at: completedAtISO,
+        })
+        .eq("id", id);
+
+      if (error) throw error;
+    } catch (err) {
+      console.error("Error toggling admin task:", err);
+      toast.error("Failed to update task");
+      fetchTasks();
+    }
   }
 
   const active = tasks.filter((t) => !t.completed);
   const completed = tasks.filter((t) => t.completed);
-  const doneCount = completed.length;
+  
+  const totalAdminPending = adminTasks.filter((t) => !t.completed).length;
+  const totalAdminCompleted = adminTasks.filter((t) => t.completed).length;
 
-  const todayCount = active.filter((t) => t.due === todayISO()).length;
-  const overdueCount = active.filter((t) => formatDue(t.due).overdue).length;
-  const weekDone = completed.length;
+  const doneCount = completed.length + totalAdminCompleted;
+  const totalTasksCount = tasks.length + adminTasks.length;
+
+  const todayCount = active.filter((t) => t.due === todayISO()).length + adminTasks.filter((t) => !t.completed && t.due === todayISO()).length;
+  const overdueCount = active.filter((t) => formatDue(t.due).overdue).length + adminTasks.filter((t) => !t.completed && formatDue(t.due).overdue).length;
+  const weekDone = completed.length + totalAdminCompleted;
 
   const filtered = useMemo(() => {
     if (filter === "today") return active.filter((t) => t.due === todayISO());
@@ -591,6 +676,10 @@ function TaskCard({
   const [startX, setStartX] = useState<number | null>(null);
 
   function onTouchStart(e: React.TouchEvent) {
+    const target = e.target as HTMLElement;
+    if (target.closest("button") || target.closest("a")) {
+      return;
+    }
     setStartX(e.touches[0].clientX);
   }
   function onTouchMove(e: React.TouchEvent) {
@@ -612,11 +701,13 @@ function TaskCard({
 
   return (
     <div className="relative">
-      <div className="absolute inset-0 flex items-center justify-end pr-4 rounded-xl bg-[#E02424]">
-        <button onClick={onDelete} className="text-white text-xs font-semibold inline-flex items-center gap-1">
-          <Trash2 size={14} /> Delete
-        </button>
-      </div>
+      {dx < 0 && (
+        <div className="absolute inset-0 flex items-center justify-end pr-4 rounded-xl bg-[#E02424]">
+          <button onClick={onDelete} className="text-white text-xs font-semibold inline-flex items-center gap-1">
+            <Trash2 size={14} /> Delete
+          </button>
+        </div>
+      )}
 
       <div
         onTouchStart={onTouchStart}
@@ -624,7 +715,7 @@ function TaskCard({
         onTouchEnd={onTouchEnd}
         style={{ transform: `translateX(${dx}px)` }}
         className={`relative rounded-xl bg-card border border-border p-3 shadow-sm transition-[transform,background-color] duration-200 ${
-          task.completed ? "opacity-80 border-l-4 border-l-success" : ""
+          task.completed ? "bg-[#F9FAFB] dark:bg-slate-900/40 border-l-4 border-l-success/70 opacity-75" : ""
         } ${flash ? "bg-success-light" : ""}`}
       >
         <div className="flex items-start gap-3">
@@ -661,10 +752,13 @@ function TaskCard({
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            <span className={`h-2.5 w-2.5 rounded-full ${p.dot}`} title={p.label} />
+            <span className={`h-2.5 w-2.5 rounded-full ${task.completed ? "bg-slate-300 dark:bg-slate-700" : p.dot}`} title={p.label} />
             <div className="relative">
               <button
-                onClick={onMenu}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onMenu();
+                }}
                 className="h-7 w-7 grid place-content-center rounded-md text-muted-foreground hover:bg-background"
               >
                 <MoreVertical size={16} />
@@ -675,9 +769,20 @@ function TaskCard({
                     icon={<CheckCircle2 size={13} />}
                     label={task.completed ? "Mark Active" : "Mark Complete"}
                     color="text-success"
-                    onClick={onToggle}
+                    onClick={() => {
+                      onToggle();
+                      onMenu();
+                    }}
                   />
-                  <MenuItem icon={<Trash2 size={13} />} label="Delete" color="text-[#E02424]" onClick={onDelete} />
+                  <MenuItem 
+                    icon={<Trash2 size={13} />} 
+                    label="Delete" 
+                    color="text-[#E02424]" 
+                    onClick={() => {
+                      onDelete();
+                      onMenu();
+                    }} 
+                  />
                 </div>
               )}
             </div>
@@ -701,7 +806,10 @@ function MenuItem({
 }) {
   return (
     <button
-      onClick={onClick}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick?.();
+      }}
       className={`w-full flex items-center gap-2 px-3 py-2 text-[12px] font-medium hover:bg-background ${color}`}
     >
       {icon} {label}

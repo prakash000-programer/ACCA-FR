@@ -68,17 +68,7 @@ function HomePage() {
       }
     }
 
-    // 2. Count notes read from localStorage
-    let count = 0;
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith("pdf_progress_")) {
-        count++;
-      }
-    }
-    setNotesReadCount(count);
-
-    // 3. Fetch latest notification
+    // 2. Fetch latest notification
     const fetchLatestNotification = async () => {
       const { data, error } = await supabase
         .from("notifications")
@@ -139,6 +129,34 @@ function HomePage() {
         if (sorted.length > 0) {
           setUrgentTask(sorted[0]);
         }
+      }
+
+      // 6. Fetch published content list to check against localStorage progress
+      try {
+        const { data: contents } = await supabase
+          .from("content")
+          .select("id")
+          .eq("is_published", true);
+
+        if (contents) {
+          let count = 0;
+          contents.forEach((c: any) => {
+            const stored = localStorage.getItem(`pdf_progress_${c.id}`);
+            if (stored) {
+              try {
+                const parsed = JSON.parse(stored);
+                if (parsed && parsed.progress > 0) {
+                  count++;
+                }
+              } catch (e) {
+                count++;
+              }
+            }
+          });
+          setNotesReadCount(count);
+        }
+      } catch (err) {
+        console.error("Error calculating notes read count:", err);
       }
     };
 

@@ -64,7 +64,9 @@ function VerifyPage() {
       return;
     }
     if (state === "fail") return;
+    if (!user) return;
 
+    const userId = user.id;
     const verifyDevice = async () => {
       try {
         const { deviceId, model, osVersion } = await getDeviceFingerprint();
@@ -73,7 +75,7 @@ function VerifyPage() {
         const { data: existing, error: fetchError } = await supabase
           .from("device_registrations")
           .select("device_id")
-          .eq("user_id", user.id)
+          .eq("user_id", userId)
           .maybeSingle();
 
         if (fetchError) throw fetchError;
@@ -83,7 +85,7 @@ function VerifyPage() {
           const { error: insertError } = await supabase
             .from("device_registrations")
             .insert({
-              user_id: user.id,
+              user_id: userId,
               device_id: deviceId,
               device_model: model,
               os_version: osVersion,
@@ -111,13 +113,14 @@ function VerifyPage() {
 
   useEffect(() => {
     if (state === "success" && user) {
+      const userId = user.id;
       const checkSubscriptionAndRedirect = async () => {
         try {
           // Fetch subscription status
           const { data: profile, error } = await supabase
             .from("users")
             .select("subscription_status")
-            .eq("id", user.id)
+            .eq("id", userId)
             .single();
 
           if (error) throw error;
