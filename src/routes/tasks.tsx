@@ -688,6 +688,28 @@ function TaskCard({
     setStartX(null);
   }
 
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    const handleOutsideClick = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest(".task-menu-container")) {
+        onMenu();
+      }
+    };
+
+    const timer = setTimeout(() => {
+      document.addEventListener("click", handleOutsideClick);
+      document.addEventListener("touchstart", handleOutsideClick);
+    }, 50);
+
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("click", handleOutsideClick);
+      document.removeEventListener("touchstart", handleOutsideClick);
+    };
+  }, [menuOpen, onMenu]);
+
   return (
     <div className="relative">
       {dx < 0 && (
@@ -742,7 +764,7 @@ function TaskCard({
 
           <div className="flex items-center gap-2 shrink-0">
             <span className={`h-2.5 w-2.5 rounded-full ${task.completed ? "bg-slate-300 dark:bg-slate-700" : p.dot}`} title={p.label} />
-            <div className="relative">
+            <div className="relative task-menu-container">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -753,39 +775,26 @@ function TaskCard({
                 <MoreVertical size={16} />
               </button>
               {menuOpen && (
-                <>
-                  <div 
-                    className="fixed inset-0 z-10 bg-transparent" 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onMenu();
-                    }}
-                    onTouchStart={(e) => {
-                      e.stopPropagation();
+                <div className="absolute right-0 top-8 z-20 w-36 rounded-xl bg-card border border-border shadow-lg py-1 animate-scale-in">
+                  <MenuItem
+                    icon={<CheckCircle2 size={13} />}
+                    label={task.completed ? "Mark Active" : "Mark Complete"}
+                    color="text-success"
+                    onClick={() => {
+                      onToggle();
                       onMenu();
                     }}
                   />
-                  <div className="absolute right-0 top-8 z-20 w-36 rounded-xl bg-card border border-border shadow-lg py-1 animate-scale-in">
-                    <MenuItem
-                      icon={<CheckCircle2 size={13} />}
-                      label={task.completed ? "Mark Active" : "Mark Complete"}
-                      color="text-success"
-                      onClick={() => {
-                        onToggle();
-                        onMenu();
-                      }}
-                    />
-                    <MenuItem 
-                      icon={<Trash2 size={13} />} 
-                      label="Delete" 
-                      color="text-[#E02424]" 
-                      onClick={() => {
-                        onDelete();
-                        onMenu();
-                      }} 
-                    />
-                  </div>
-                </>
+                  <MenuItem 
+                    icon={<Trash2 size={13} />} 
+                    label="Delete" 
+                    color="text-[#E02424]" 
+                    onClick={() => {
+                      onDelete();
+                      onMenu();
+                    }} 
+                  />
+                </div>
               )}
             </div>
           </div>

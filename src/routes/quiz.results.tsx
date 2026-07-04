@@ -142,7 +142,7 @@ function ResultsPage() {
   const wrongCount = totalCount - correctCount - skippedCount;
   
   const scorePercent = totalCount > 0 ? Math.round((correctCount / totalCount) * 100) : 0;
-  const r = 56;
+  const r = 68;
   const c = 2 * Math.PI * r;
   const offset = c - (scorePercent / 100) * c;
   
@@ -167,19 +167,30 @@ function ResultsPage() {
 
 
           <div className="relative inline-block">
-            <svg width="160" height="160" className="-rotate-90">
-              <circle cx="80" cy="80" r={r} fill="none" stroke="var(--color-primary-light)" strokeWidth="12" />
-              <circle
-                cx="80"
-                cy="80"
-                r={r}
-                fill="none"
-                stroke="var(--color-primary)"
-                strokeWidth="12"
-                strokeLinecap="round"
-                strokeDasharray={c}
-                strokeDashoffset={offset}
-              />
+            <svg width="160" height="160" viewBox="0 0 160 160" className="-rotate-90">
+              <circle cx="80" cy="80" r={r} fill="none" stroke="var(--color-primary-light)" strokeWidth="14" />
+              {scorePercent === 100 ? (
+                <circle
+                  cx="80"
+                  cy="80"
+                  r={r}
+                  fill="none"
+                  stroke="var(--color-primary)"
+                  strokeWidth="14"
+                />
+              ) : (
+                <circle
+                  cx="80"
+                  cy="80"
+                  r={r}
+                  fill="none"
+                  stroke="var(--color-primary)"
+                  strokeWidth="14"
+                  strokeLinecap="round"
+                  strokeDasharray={c}
+                  strokeDashoffset={offset}
+                />
+              )}
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
               <span className="font-display font-extrabold text-4xl text-primary">{scorePercent}%</span>

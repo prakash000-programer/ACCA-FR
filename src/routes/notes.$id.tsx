@@ -46,6 +46,7 @@ function PdfViewer() {
 
   const handleTouchMove = (e: React.TouchEvent) => {
     if (e.touches.length === 2 && initialDist !== null) {
+      if (e.cancelable) e.preventDefault();
       const dist = Math.hypot(
         e.touches[0].clientX - e.touches[1].clientX,
         e.touches[0].clientY - e.touches[1].clientY
@@ -409,7 +410,7 @@ function PdfViewer() {
             </div>
           ) : (
             <div 
-              className="w-full rounded-lg overflow-auto border border-border bg-background relative z-0 flex justify-center max-h-[72vh] touch-none"
+              className="w-full rounded-lg overflow-auto border border-border bg-background relative z-0 flex justify-center max-h-[72vh]"
               onTouchStart={handleTouchStart}
               onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
@@ -419,7 +420,7 @@ function PdfViewer() {
                   <div className="h-6 w-6 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
                 </div>
               )}
-              <div className="w-full h-full flex justify-center items-start overflow-auto p-1">
+              <div className={`w-full h-full flex items-start overflow-auto p-1 ${zoomScale > 1.0 ? "justify-start" : "justify-center"}`}>
                 <canvas 
                   id="pdf-canvas" 
                   className="shadow-sm transition-[width] duration-200" 

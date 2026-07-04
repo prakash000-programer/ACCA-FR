@@ -155,7 +155,7 @@ function ReferralPage() {
               <input
                 readOnly
                 value={referralLink}
-                className="flex-1 h-11 rounded-xl bg-background border border-border px-3 text-sm font-mono text-foreground outline-none"
+                className="flex-1 min-w-0 h-11 rounded-xl bg-background border border-border px-3 text-sm font-mono text-foreground outline-none"
               />
               <button
                 onClick={handleCopy}
