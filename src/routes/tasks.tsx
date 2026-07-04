@@ -167,18 +167,7 @@ function TasksPage() {
     };
   }, [user]);
 
-  // Close menu on click outside
-  useEffect(() => {
-    if (!openMenu) return;
-    const handleClose = () => setOpenMenu(null);
-    const timer = setTimeout(() => {
-      window.addEventListener("click", handleClose);
-    }, 0);
-    return () => {
-      clearTimeout(timer);
-      window.removeEventListener("click", handleClose);
-    };
-  }, [openMenu]);
+
 
   async function toggleAdmin(id: string) {
     const task = adminTasks.find((t) => t.id === id);
@@ -764,26 +753,39 @@ function TaskCard({
                 <MoreVertical size={16} />
               </button>
               {menuOpen && (
-                <div className="absolute right-0 top-8 z-20 w-36 rounded-xl bg-card border border-border shadow-lg py-1 animate-scale-in">
-                  <MenuItem
-                    icon={<CheckCircle2 size={13} />}
-                    label={task.completed ? "Mark Active" : "Mark Complete"}
-                    color="text-success"
-                    onClick={() => {
-                      onToggle();
+                <>
+                  <div 
+                    className="fixed inset-0 z-10 bg-transparent" 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onMenu();
+                    }}
+                    onTouchStart={(e) => {
+                      e.stopPropagation();
                       onMenu();
                     }}
                   />
-                  <MenuItem 
-                    icon={<Trash2 size={13} />} 
-                    label="Delete" 
-                    color="text-[#E02424]" 
-                    onClick={() => {
-                      onDelete();
-                      onMenu();
-                    }} 
-                  />
-                </div>
+                  <div className="absolute right-0 top-8 z-20 w-36 rounded-xl bg-card border border-border shadow-lg py-1 animate-scale-in">
+                    <MenuItem
+                      icon={<CheckCircle2 size={13} />}
+                      label={task.completed ? "Mark Active" : "Mark Complete"}
+                      color="text-success"
+                      onClick={() => {
+                        onToggle();
+                        onMenu();
+                      }}
+                    />
+                    <MenuItem 
+                      icon={<Trash2 size={13} />} 
+                      label="Delete" 
+                      color="text-[#E02424]" 
+                      onClick={() => {
+                        onDelete();
+                        onMenu();
+                      }} 
+                    />
+                  </div>
+                </>
               )}
             </div>
           </div>

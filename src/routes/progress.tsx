@@ -93,21 +93,7 @@ function ProgressPage() {
 
   const years = Array.from({ length: 26 }, (_, i) => 2025 + i); // 2025 to 2050
 
-  // Close picker dropdowns on click outside
-  useEffect(() => {
-    if (!showMonthDropdown && !showYearDropdown) return;
-    const handleClose = () => {
-      setShowMonthDropdown(false);
-      setShowYearDropdown(false);
-    };
-    const timer = setTimeout(() => {
-      window.addEventListener("click", handleClose);
-    }, 0);
-    return () => {
-      clearTimeout(timer);
-      window.removeEventListener("click", handleClose);
-    };
-  }, [showMonthDropdown, showYearDropdown]);
+
 
   const prevMonth = () => {
     setSelectedDate((prev) => {
@@ -316,26 +302,39 @@ function ProgressPage() {
                         {selectedDate.toLocaleString(undefined, { month: "short" })}
                       </button>
                       {showMonthDropdown && (
-                        <div className="absolute left-0 mt-1 z-30 w-28 rounded-lg bg-card border border-border shadow-lg max-h-48 overflow-y-auto py-1 animate-scale-in scrollbar-none">
-                          {months.map((m, idx) => (
-                            <button
-                              key={m}
-                              onClick={() => {
-                                setSelectedDate((prev) => {
-                                  const next = new Date(prev);
-                                  next.setMonth(idx);
-                                  return next;
-                                });
-                                setShowMonthDropdown(false);
-                              }}
-                              className={`w-full text-left px-2.5 py-1.5 text-[11px] font-medium transition-colors hover:bg-accent ${
-                                selectedDate.getMonth() === idx ? "text-primary font-bold bg-primary-light/30" : "text-foreground"
-                              }`}
-                            >
-                              {m}
-                            </button>
-                          ))}
-                        </div>
+                        <>
+                          <div 
+                            className="fixed inset-0 z-20 bg-transparent" 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShowMonthDropdown(false);
+                            }}
+                            onTouchStart={(e) => {
+                              e.stopPropagation();
+                              setShowMonthDropdown(false);
+                            }}
+                          />
+                          <div className="absolute left-0 mt-1 z-30 w-28 rounded-lg bg-card border border-border shadow-lg max-h-48 overflow-y-auto py-1 animate-scale-in scrollbar-none">
+                            {months.map((m, idx) => (
+                              <button
+                                key={m}
+                                onClick={() => {
+                                  setSelectedDate((prev) => {
+                                    const next = new Date(prev);
+                                    next.setMonth(idx);
+                                    return next;
+                                  });
+                                  setShowMonthDropdown(false);
+                                }}
+                                className={`w-full text-left px-2.5 py-1.5 text-[11px] font-medium transition-colors hover:bg-accent ${
+                                  selectedDate.getMonth() === idx ? "text-primary font-bold bg-primary-light/30" : "text-foreground"
+                                }`}
+                              >
+                                {m}
+                              </button>
+                            ))}
+                          </div>
+                        </>
                       )}
                     </div>
 
@@ -351,27 +350,40 @@ function ProgressPage() {
                       >
                         {selectedDate.getFullYear()}
                       </button>
-                      {showYearDropdown && (
-                        <div className="absolute right-0 mt-1 z-30 w-20 rounded-lg bg-card border border-border shadow-lg max-h-48 overflow-y-auto py-1 animate-scale-in scrollbar-none">
-                          {years.map((y) => (
-                            <button
-                              key={y}
-                              onClick={() => {
-                                setSelectedDate((prev) => {
-                                  const next = new Date(prev);
-                                  next.setFullYear(y);
-                                  return next;
-                                });
-                                setShowYearDropdown(false);
-                              }}
-                              className={`w-full text-left px-2.5 py-1.5 text-[11px] font-medium transition-colors hover:bg-accent ${
-                                selectedDate.getFullYear() === y ? "text-primary font-bold bg-primary-light/30" : "text-foreground"
-                              }`}
-                            >
-                              {y}
-                            </button>
-                          ))}
-                        </div>
+                       {showYearDropdown && (
+                        <>
+                          <div 
+                            className="fixed inset-0 z-20 bg-transparent" 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShowYearDropdown(false);
+                            }}
+                            onTouchStart={(e) => {
+                              e.stopPropagation();
+                              setShowYearDropdown(false);
+                            }}
+                          />
+                          <div className="absolute right-0 mt-1 z-30 w-20 rounded-lg bg-card border border-border shadow-lg max-h-48 overflow-y-auto py-1 animate-scale-in scrollbar-none">
+                            {years.map((y) => (
+                              <button
+                                key={y}
+                                onClick={() => {
+                                  setSelectedDate((prev) => {
+                                    const next = new Date(prev);
+                                    next.setFullYear(y);
+                                    return next;
+                                  });
+                                  setShowYearDropdown(false);
+                                }}
+                                className={`w-full text-left px-2.5 py-1.5 text-[11px] font-medium transition-colors hover:bg-accent ${
+                                  selectedDate.getFullYear() === y ? "text-primary font-bold bg-primary-light/30" : "text-foreground"
+                                }`}
+                              >
+                                {y}
+                              </button>
+                            ))}
+                          </div>
+                        </>
                       )}
                     </div>
                   </div>
