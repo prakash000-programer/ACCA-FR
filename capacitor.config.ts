@@ -9,7 +9,7 @@ const config: CapacitorConfig = {
   // Dev server is only used locally; removed in production builds
   ...(isDev && {
     server: {
-      url: 'http://10.217.33.207:3000',
+      url: 'http://172.20.52.84:3000',
       cleartext: true,
     },
   }),

@@ -256,14 +256,14 @@ CREATE POLICY "Authenticated users can read PDFs" ON storage.objects
 CREATE POLICY "Admins can upload PDFs" ON storage.objects
   FOR INSERT TO authenticated WITH CHECK (
     bucket_id = 'acca-pdfs' AND 
-    (SELECT email FROM public.users WHERE id = auth.uid()) = 'admin@accafr.in'
+    auth.jwt() ->> 'email' = 'admin@accafr.in'
   );
 
 -- Allow admin to delete files from the acca-pdfs storage bucket
 CREATE POLICY "Admins can delete PDFs" ON storage.objects
   FOR DELETE TO authenticated USING (
     bucket_id = 'acca-pdfs' AND 
-    (SELECT email FROM public.users WHERE id = auth.uid()) = 'admin@accafr.in'
+    auth.jwt() ->> 'email' = 'admin@accafr.in'
   );
 
 -- =========================================================================
@@ -286,13 +286,13 @@ ALTER TABLE public.support_messages ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users and admins can insert support messages" ON public.support_messages
   FOR INSERT TO authenticated WITH CHECK (
     auth.uid() = user_id OR 
-    (SELECT email FROM public.users WHERE id = auth.uid()) = 'admin@accafr.in'
+    auth.jwt() ->> 'email' = 'admin@accafr.in'
   );
 
 CREATE POLICY "Users and admins can view support messages" ON public.support_messages
   FOR SELECT TO authenticated USING (
     auth.uid() = user_id OR 
-    (SELECT email FROM public.users WHERE id = auth.uid()) = 'admin@accafr.in'
+    auth.jwt() ->> 'email' = 'admin@accafr.in'
   );
 
 -- =========================================================================
